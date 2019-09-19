@@ -13,7 +13,7 @@ Only tested on ESP8266 with Arduino Core for ESP8266 v2.5.2.
 // This is the default (send) delay time, used for DeepSleep (DeepSleep is disabled by default)
 #define DEFAULT_DELAY             60
 
-// This is the default unit number of the node
+// This is the default unit number of the node, can be changed, default is 254
 #define UNIT                     254
 
 // Default destination node number (0=broadcast to every unit, set it to the RPIEasy node number for correct working)
