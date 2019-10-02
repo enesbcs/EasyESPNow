@@ -44,7 +44,7 @@ void serial()
     }
   }
 #endif    
-    if ((SerialInByte == '\n') && (SerialInByte>1))
+    if ((SerialInByte == '\n') && (SerialInByteCounter>1))
     {
       InputBuffer_Serial[SerialInByteCounter] = 0; // serial data completed
       Serial.write('>');

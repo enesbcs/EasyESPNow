@@ -193,7 +193,7 @@ void setup()
     Serial.print(F("Version:"));
     Serial.println(Settings.Version);
     Serial.println(F("INIT : Incorrect PID or version!"));
-    delay(1000);
+    delay(6000);
     ResetFactory();
   }
 

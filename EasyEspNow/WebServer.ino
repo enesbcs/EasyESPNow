@@ -2320,11 +2320,11 @@ void handle_download()
 {
   if (!isLoggedIn()) return;
 
-  fs::File dataFile = SPIFFS.open("config.dat", "r");
+  fs::File dataFile = SPIFFS.open(FILE_CONFIG, "r");
   if (!dataFile)
     return;
 
-  WebServer.sendHeader("Content-Disposition", "attachment; filename=config.dat");
+  WebServer.sendHeader("Content-Disposition", "attachment; filename=config.dat"); // ESP32?
   WebServer.streamFile(dataFile, "application/octet-stream");
 }
 
@@ -2407,7 +2407,7 @@ void handleFileUpload() {
     // first data block, if this is the config file, check PID/Version
     if (upload.totalSize == 0)
     {
-      if (strcasecmp(upload.filename.c_str(), "config.dat") == 0)
+      if (strcasecmp(upload.filename.c_str(), FILE_CONFIG) == 0)
       {
         struct TempStruct {
           unsigned long PID;
@@ -2523,7 +2523,7 @@ void handle_filelist() {
   while (dir.next())
   {
     reply += F("<TR><TD>");
-    if (dir.fileName() != "config.dat" && dir.fileName() != "security.dat" && dir.fileName() != "notification.dat")
+    if (dir.fileName() != FILE_CONFIG && dir.fileName() != FILE_SECURITY && dir.fileName() != FILE_NOTIFICATION)
     {
       reply += F("<a class=\"button-link\" href=\"filelist?delete=");
       reply += dir.fileName();
@@ -2570,7 +2570,7 @@ void handle_SDfilelist() {
     if (!entry.isDirectory())
     {
       reply += F("<TR><TD>");
-      if (entry.name() != "config.dat" && entry.name() != "security.dat")
+      if (entry.name() != FILE_CONFIG && entry.name() != FILE_SECURITY)
       {
         reply += F("<a class=\"button-link\" href=\"SDfilelist?delete=");
         reply += entry.name();

@@ -706,36 +706,3 @@ void SSDP_update() {
 
 }
 #endif
-#ifdef USE_ESPNOW
-
-uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
- // Init ESP Now
-void InitESPNow() {
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  if (esp_now_init() == 0) {
-    Serial.println("ESPNow Init Success");
-  }
-  else {
-    delay(1000);
-    Serial.println("ESPNow Init Failed");
-    delay(5000);
-    reboot();
-  }
-#if defined(ESP32)  
-  esp_now_peer_info_t slave;
-  const esp_now_peer_info_t *peer = &slave;
-  memcpy( &slave.peer_addr, &broadcastMac, 6 );
-  slave.channel = Settings.UDPPort;
-  slave.encrypt = 0;
-  esp_now_add_peer(peer);
-#endif  
-#if defined(ESP8266)  
-  esp_now_set_self_role(Settings.OLD_TaskDeviceID[0]); // OLD_TaskDeviceID[0] = ROLE!!!
-  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, Settings.UDPPort, NULL, 0);   // Settings.UDPPort = WIFI_CHANNEL
-#endif  
-  esp_now_register_recv_cb(ESPNOW_receiver); // Attach _C001_ESPNOW.ino receiver
-}
-
-#endif

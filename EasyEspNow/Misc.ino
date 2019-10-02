@@ -446,7 +446,7 @@ void BuildFixes()
 
   if (Settings.Build < 145)
   {
-    fs::File f = SPIFFS.open("notification.dat", "w");
+    fs::File f = SPIFFS.open(FILE_NOTIFICATION, "w");
     if (f)
     {
       for (int x = 0; x < 4096; x++)
@@ -468,7 +468,7 @@ void fileSystemCheck()
   {
     String log = F("SPIFFS Mount successful");
     addLog(LOG_LEVEL_INFO, log);
-    fs::File f = SPIFFS.open("config.dat", "r");
+    fs::File f = SPIFFS.open(FILE_CONFIG, "r");
     if (!f)
     {
       log = F("formatting...");
@@ -629,8 +629,8 @@ boolean str2ip(char *string, byte* IP)
   \*********************************************************************************************/
 boolean SaveSettings(void)
 {
-  SaveToFile((char*)"config.dat", 0, (byte*)&Settings, sizeof(struct SettingsStruct));
-  return SaveToFile((char*)"security.dat", 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
+  SaveToFile((char*)FILE_CONFIG, 0, (byte*)&Settings, sizeof(struct SettingsStruct));
+  return SaveToFile((char*)FILE_SECURITY, 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
 }
 
 
@@ -639,8 +639,8 @@ boolean SaveSettings(void)
   \*********************************************************************************************/
 boolean LoadSettings()
 {
-  LoadFromFile((char*)"config.dat", 0, (byte*)&Settings, sizeof(struct SettingsStruct));
-  LoadFromFile((char*)"security.dat", 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
+  LoadFromFile((char*)FILE_CONFIG, 0, (byte*)&Settings, sizeof(struct SettingsStruct));
+  LoadFromFile((char*)FILE_SECURITY, 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
 }
 
 
@@ -650,7 +650,7 @@ boolean LoadSettings()
 boolean SaveTaskSettings(byte TaskIndex)
 {
   ExtraTaskSettings.TaskIndex = TaskIndex;
-  return SaveToFile((char*)"config.dat", DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE), (byte*)&ExtraTaskSettings, sizeof(struct ExtraTaskSettingsStruct));
+  return SaveToFile((char*)FILE_CONFIG, DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE), (byte*)&ExtraTaskSettings, sizeof(struct ExtraTaskSettingsStruct));
 }
 
 
@@ -662,7 +662,7 @@ void LoadTaskSettings(byte TaskIndex)
   if (ExtraTaskSettings.TaskIndex == TaskIndex)
     return;
 
-  LoadFromFile((char*)"config.dat", DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE), (byte*)&ExtraTaskSettings, sizeof(struct ExtraTaskSettingsStruct));
+  LoadFromFile((char*)FILE_CONFIG, DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE), (byte*)&ExtraTaskSettings, sizeof(struct ExtraTaskSettingsStruct));
   ExtraTaskSettings.TaskIndex = TaskIndex; // Needed when an empty task was requested
 }
 
@@ -674,7 +674,7 @@ boolean SaveCustomTaskSettings(int TaskIndex, byte* memAddress, int datasize)
 {
   if (datasize > DAT_TASKS_SIZE)
     return false;
-  return SaveToFile((char*)"config.dat", DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE) + DAT_TASKS_CUSTOM_OFFSET, memAddress, datasize);
+  return SaveToFile((char*)FILE_CONFIG, DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE) + DAT_TASKS_CUSTOM_OFFSET, memAddress, datasize);
 }
 
 
@@ -685,7 +685,7 @@ void LoadCustomTaskSettings(int TaskIndex, byte* memAddress, int datasize)
 {
   if (datasize > DAT_TASKS_SIZE)
     return;
-  LoadFromFile((char*)"config.dat", DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE) + DAT_TASKS_CUSTOM_OFFSET, memAddress, datasize);
+  LoadFromFile((char*)FILE_CONFIG, DAT_OFFSET_TASKS + (TaskIndex * DAT_TASKS_SIZE) + DAT_TASKS_CUSTOM_OFFSET, memAddress, datasize);
 }
 
 /********************************************************************************************\
@@ -695,7 +695,7 @@ boolean SaveControllerSettings(int ControllerIndex, byte* memAddress, int datasi
 {
   if (datasize > DAT_CONTROLLER_SIZE)
     return false;
-  return SaveToFile((char*)"config.dat", DAT_OFFSET_CONTROLLER + (ControllerIndex * DAT_CONTROLLER_SIZE), memAddress, datasize);
+  return SaveToFile((char*)FILE_CONFIG, DAT_OFFSET_CONTROLLER + (ControllerIndex * DAT_CONTROLLER_SIZE), memAddress, datasize);
 }
 
 
@@ -706,7 +706,7 @@ void LoadControllerSettings(int ControllerIndex, byte* memAddress, int datasize)
 {
   if (datasize > DAT_CONTROLLER_SIZE)
     return;
-  LoadFromFile((char*)"config.dat", DAT_OFFSET_CONTROLLER + (ControllerIndex * DAT_CONTROLLER_SIZE), memAddress, datasize);
+  LoadFromFile((char*)FILE_CONFIG, DAT_OFFSET_CONTROLLER + (ControllerIndex * DAT_CONTROLLER_SIZE), memAddress, datasize);
 }
 
 /********************************************************************************************\
@@ -716,7 +716,7 @@ boolean SaveCustomControllerSettings(byte* memAddress, int datasize)
 {
   if (datasize > 4096)
     return false;
-  return SaveToFile((char*)"config.dat", DAT_OFFSET_CUSTOMCONTROLLER, memAddress, datasize);
+  return SaveToFile((char*)FILE_CONFIG, DAT_OFFSET_CUSTOMCONTROLLER, memAddress, datasize);
 }
 
 
@@ -727,7 +727,7 @@ void LoadCustomControllerSettings(byte* memAddress, int datasize)
 {
   if (datasize > 4096)
     return;
-  LoadFromFile((char*)"config.dat", DAT_OFFSET_CUSTOMCONTROLLER, memAddress, datasize);
+  LoadFromFile((char*)FILE_CONFIG, DAT_OFFSET_CUSTOMCONTROLLER, memAddress, datasize);
 }
 
 /********************************************************************************************\
@@ -737,7 +737,7 @@ boolean SaveNotificationSettings(int NotificationIndex, byte* memAddress, int da
 {
   if (datasize > DAT_NOTIFICATION_SIZE)
     return false;
-  return SaveToFile((char*)"notification.dat", NotificationIndex * DAT_NOTIFICATION_SIZE, memAddress, datasize);
+  return SaveToFile((char*)FILE_NOTIFICATION, NotificationIndex * DAT_NOTIFICATION_SIZE, memAddress, datasize);
 }
 
 
@@ -748,7 +748,7 @@ void LoadNotificationSettings(int NotificationIndex, byte* memAddress, int datas
 {
   if (datasize > DAT_NOTIFICATION_SIZE)
     return;
-  LoadFromFile((char*)"notification.dat", NotificationIndex * DAT_NOTIFICATION_SIZE, memAddress, datasize);
+  LoadFromFile((char*)FILE_NOTIFICATION, NotificationIndex * DAT_NOTIFICATION_SIZE, memAddress, datasize);
 }
 
 /********************************************************************************************\
@@ -845,7 +845,18 @@ void ResetFactory(void)
   RTC.flashDayCounter = 0;
   saveToRTC();
 
-  fs::File f = SPIFFS.open("config.dat", "w");
+  //always format on factory reset, in case of corrupt SPIFFS
+  SPIFFS.end();
+  Serial.println(F("RESET: formatting..."));
+  SPIFFS.format();
+  Serial.println(F("RESET: formatting done..."));
+  if (!SPIFFS.begin())
+  {
+    Serial.println(F("RESET: FORMAT SPIFFS FAILED!"));
+    return;
+  }
+  
+  fs::File f = SPIFFS.open(FILE_CONFIG, "w");
   if (f)
   {
     for (int x = 0; x < 65536; x++)
@@ -853,21 +864,21 @@ void ResetFactory(void)
     f.close();
 
   }
-  f = SPIFFS.open("security.dat", "w");
+  f = SPIFFS.open(FILE_SECURITY, "w");
   if (f)
   {
     for (int x = 0; x < 512; x++)
       f.write(0);
     f.close();
   }
-  f = SPIFFS.open("notification.dat", "w");
+  f = SPIFFS.open(FILE_NOTIFICATION, "w");
   if (f)
   {
     for (int x = 0; x < 4096; x++)
       f.write(0);
     f.close();
   }
-  f = SPIFFS.open("rules1.txt", "w");
+  f = SPIFFS.open(FILE_RULES, "w");
   f.close();
 
   LoadSettings();
@@ -1881,7 +1892,11 @@ void rulesProcessing(String& event)
 {
   for (byte x = 1; x < RULESETS_MAX + 1; x++)
   {
+#if defined(ESP32)  
+    String fileName = F("/rules");
+#else
     String fileName = F("rules");
+#endif           
     fileName += x;
     fileName += F(".txt");
     if (SPIFFS.exists(fileName))

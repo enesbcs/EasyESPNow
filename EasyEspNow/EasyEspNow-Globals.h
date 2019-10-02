@@ -142,10 +142,18 @@
 #if defined(ESP8266)
   #define TASKS_MAX                          12 // max 12!
   #define MAX_GPIO                           16
+  #define FILE_CONFIG       "config.dat"
+  #define FILE_SECURITY     "security.dat"
+  #define FILE_NOTIFICATION "notification.dat"
+  #define FILE_RULES        "rules1.txt"
 #endif
 #if defined(ESP32)
   #define TASKS_MAX                          32
   #define MAX_GPIO                           39
+  #define FILE_CONFIG       "/config.dat"
+  #define FILE_SECURITY     "/security.dat"
+  #define FILE_NOTIFICATION "/notification.dat"
+  #define FILE_RULES        "/rules1.txt"
 #endif
 #define CONTROLLER_MAX                      3 // max 4!
 #define NOTIFICATION_MAX                    3 // max 4!
@@ -235,10 +243,6 @@
   #define ARDUINO_ESP8266_RELEASE "2_4_0"
   #define NODE_TYPE_ID                        NODE_TYPE_ID_ESP_EASY32_STD
   #define ICACHE_RAM_ATTR IRAM_ATTR
-  #define FILE_CONFIG       "/config.dat"
-  #define FILE_SECURITY     "/security.dat"
-  #define FILE_NOTIFICATION "/notification.dat"
-  #define FILE_RULES        "/rules1.txt"
   #include "SPIFFS.h"
   #include <rom/rtc.h>
   #define PIN_D_MAX        39
@@ -528,5 +532,9 @@ struct RTCStruct
   byte flashDayCounter;
   unsigned long flashCounter;
 } RTC;
+
+#ifdef USE_ESPNOW
+uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+#endif
 
 #endif

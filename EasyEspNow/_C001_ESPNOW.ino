@@ -21,7 +21,7 @@ struct P2P_SysInfoStruct
   byte destUnit=0; // default destination is to broadcast
   // start of payload
   byte mac[6];
-  word build = BUILD;
+  uint16_t build = BUILD;
   byte nodeType = NODE_TYPE_ID;
   byte cap;
   byte NameLength; // length of the following char array to send
@@ -36,8 +36,8 @@ struct P2P_SensorDataStruct_Raw
   byte sourcelUnit;
   byte destUnit;
   // start of payload
-  word plugin_id; 
-  word idx;
+  uint16_t plugin_id; 
+  uint16_t idx;
   byte samplesetcount=0;
   byte valuecount;  
   float Values[VARS_PER_TASK];  // use original float data
@@ -51,8 +51,8 @@ struct P2P_SensorDataStruct_TTN
   byte sourcelUnit;
   byte destUnit;
   // start of payload
-  word plugin_id; 
-  word idx;
+  uint16_t plugin_id; 
+  uint16_t idx;
   byte samplesetcount=0;
   byte valuecount;  
   byte data[8];    // implement base16Encode thing if you like
@@ -109,14 +109,16 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
     case CPLUGIN_PROTOCOL_RECV:
       {
         if (event->Data[0]==255) {
-/*          Serial.println("PKTOK");
-          Serial.println(event->Par1); */
+//          Serial.println("PKTOK");
+//          Serial.println(event->Par1);
           
           if (event->Data[1]==1) { // infopacket
             struct P2P_SysInfoStruct dataReply;          
             memcpy(&dataReply, event->Data, event->Par1);
             if (Settings.OLD_TaskDeviceID[1] == ESPNOW_SERIAL_GATEWAY) { // write to serial in bridge mode
-              Serial.write((byte*)&dataReply,event->Par1);
+              Serial.flush();
+//              Serial.write((byte*)&dataReply,event->Par1);
+              Serial.write(event->Data,event->Par1);              
             }
             break;
           }
@@ -128,6 +130,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
               break;
             }
             if (Settings.OLD_TaskDeviceID[1] == ESPNOW_SERIAL_GATEWAY) { // write to serial in bridge mode
+              Serial.flush();              
               Serial.write((byte*)&dataReply,event->Par1);
             }
             dataReply.CommandLine[dataReply.CommandLength] = 0; // make it zero terminated
@@ -153,6 +156,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
               Serial.println(F("Receiving not supported!"));
               break;
             }
+            Serial.flush();
             Serial.write((byte*)&dataReply,event->Par1);
           }
                     
@@ -166,6 +170,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
               Serial.println(F("Receiving not supported!"));
               break;
             }
+            Serial.flush();
             Serial.write((byte*)&dataReply,event->Par1);
           }
         
@@ -190,15 +195,17 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           for (byte x = 0; x < dataReply.valuecount; x++)
             dataReply.Values[x] = (float)UserVar[event->BaseVarIndex + x];
   
-/*          Serial.print(dataReply.idx);
-          Serial.print(",");  
-          Serial.println(dataReply.Values[0]); */
-
           byte psize = sizeof(P2P_SensorDataStruct_Raw);
           if (dataReply.valuecount<4) { // do not send zeroes
             psize = psize - ((4-dataReply.valuecount)*sizeof(float));
           }
-/*          for (byte x = 0; x < psize; x++) {
+/*          Serial.print(dataReply.idx);
+          Serial.print(",");  
+          Serial.println(dataReply.Values[0]);
+          Serial.print(",");  
+          Serial.println(psize); // DEBUG
+
+           for (byte x = 0; x < psize; x++) {
             Serial.println();
             Serial.print(((byte*)&dataReply)[x]);
             Serial.println();            
@@ -221,7 +228,7 @@ void ESPNOW_receiver(const uint8_t* macaddr, const uint8_t* data, int data_len) 
 #endif
 {
 //  Serial.print("recv_cb "); // debug
-//  Serial.println(data_len);
+//  Serial.println(data_len); // debug
   if (data_len<1) {
     return;
   }
@@ -265,13 +272,16 @@ boolean ESPNOW_sendsysinfo() {
   Serial.print(",");
   Serial.println(dataReply.Name); */
   // send packet  
-  byte psize = sizeof(P2P_SysInfoStruct);
+  byte psize = sizeof(dataReply);
   if (dataReply.NameLength<24) { // do not send zeroes
     psize = psize-(24-dataReply.NameLength);
   }
 /*  Serial.print(psize);
   Serial.print(",");
-  Serial.println(dataReply.NameLength);*/
+  Serial.println(dataReply.NameLength);
+  Serial.print(",");  
+  Serial.println(psize); // DEBUG*/
+  
   delay(random(10,200));
   esp_now_send(broadcastMac, (byte*) &dataReply, psize);
 }
@@ -288,7 +298,7 @@ boolean ESPNOW_sendreply(String line) {
   dataReply.destUnit = byte(Settings.OLD_TaskDeviceID[2]);
 
   // send packet  
-  byte psize = sizeof(P2P_TextDataStruct);
+  byte psize = sizeof(dataReply);
   if (dataReply.TextLength<80) { // do not send zeroes
     psize = psize-(80-dataReply.TextLength);
   }
@@ -662,5 +672,34 @@ uint32_t makeTime(const timeStruct &tm) {
   seconds+= tm.Second;
   return (uint32_t)seconds;
 }
+
+ // Init ESP Now
+void InitESPNow() {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  if (esp_now_init() == 0) {
+    Serial.println("ESPNow Init Success");
+  }
+  else {
+    delay(1000);
+    Serial.println("ESPNow Init Failed");
+    delay(5000);
+    reboot();
+  }
+#if defined(ESP32)  
+  esp_now_peer_info_t slave;
+  memcpy(slave.peer_addr, broadcastMac, sizeof(broadcastMac) );
+  slave.channel = Settings.UDPPort;
+  slave.ifidx = ESP_IF_WIFI_STA;
+  slave.encrypt = 0;
+  esp_err_t status = esp_now_add_peer(&slave);
+#endif  
+#if defined(ESP8266)  
+  esp_now_set_self_role(Settings.OLD_TaskDeviceID[0]); // OLD_TaskDeviceID[0] = ROLE!!!
+  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, Settings.UDPPort, NULL, 0);   // Settings.UDPPort = WIFI_CHANNEL
+#endif  
+  esp_now_register_recv_cb(ESPNOW_receiver); // Attach _C001_ESPNOW.ino receiver
+}
+
 
 #endif
