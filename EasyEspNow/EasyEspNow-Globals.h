@@ -13,13 +13,14 @@
 #define USE_ESPNOW
 
 #define DEFAULT_NAME        "espnowdevice"      // Enter your device friendly name
-#define DEFAULT_DELAY       60                  // Enter your Send delay in seconds
+#define DEFAULT_DELAY                   60      // Enter your Send delay in seconds
 
-#define UNIT                       254          // own Node ID
-#define DEFAULT_DESTINATION_NODE   0            // default destination ID (0=broadcast)
+#define UNIT                           254      // own Node ID
+#define DEFAULT_DESTINATION_NODE         0      // default destination ID (0=broadcast)
 
-#define WIFI_CHANNEL 1                          // For ESPNOW
-#define ALIVE_PERIOD 300000                     // in milliseconds
+#define WIFI_CHANNEL                     1      // For ESPNOW
+#define ALIVE_PERIOD                300000      // in milliseconds, set to 0 if not needed!
+#define DEFAULT_BAUD_RATE           115200
 
 #ifdef USE_ESPNOW
  #if defined(ESP8266)
@@ -532,9 +533,7 @@ struct RTCStruct
   byte flashDayCounter;
   unsigned long flashCounter;
 } RTC;
-
 #ifdef USE_ESPNOW
 uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 #endif
-
 #endif

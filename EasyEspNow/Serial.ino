@@ -35,7 +35,7 @@ void serial()
        EspNowInByteCounter = 0;
        break;
       case 2:
-//       Serial.println("Pkt routed from serial to espnow");
+//       Serial.println("Pkt routed from serial to espnow"); //DEBUG ONLY
        int err = esp_now_send(broadcastMac, (byte*) &EspNowBuffer_Serial, EspNowInByteCounter);
        EspNowInByteCounter = 0;
        SerialInByteCounter = 0;

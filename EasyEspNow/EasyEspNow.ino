@@ -160,7 +160,6 @@ void setup()
       ledChannelPin[x] = -1;
   #endif
   Serial.begin(115200);
-  //while (! Serial);
   Serial.print(F("\r\n\r\nDevice MAC: "));
   Serial.println(WiFi.macAddress());
   if (SpiffsSectors() < MIN_SPIFFS_SECTORS)
@@ -199,12 +198,12 @@ void setup()
 
   if (systemOK)
   {
+    if (Settings.UseSerial)
+      Serial.begin(Settings.BaudRate);
+//  while (! Serial); // DEBUG ONLY!
 #ifdef USE_ESPNOW
     InitESPNow();
 #endif
-    if (Settings.UseSerial)
-      Serial.begin(Settings.BaudRate);
-
     if (Settings.Build != BUILD)
       BuildFixes();
 
@@ -298,9 +297,10 @@ void setup()
     timer1s = millis() + 1000; // timer for periodic actions once per/sec
     timerwd = millis() + 30000; // timer for watchdog once per 30 sec
 
+#ifdef USE_WIFI
     if (Settings.UseNTP)
       initTime();
-
+#endif
 #if FEATURE_ADC_VCC
     vcc = ESP.getVcc() / 1000.0;
 #endif
@@ -312,7 +312,7 @@ void setup()
     if (wifiSetup)
       dnsServer.start(DNS_PORT, "*", apIP);
 #endif
-#ifdef USE_ESPNOW
+#if defined(USE_ESPNOW) && ALIVE_PERIOD>0
  if ( (Settings.OLD_TaskDeviceID[1] == ESPNOW_SEND_ONLY_ENDPOINT) || (Settings.OLD_TaskDeviceID[1] == ESPNOW_SEND_AND_RECEIVE_ENDPOINT) ) {
     lastsysinfo = millis();
     ESPNOW_sendsysinfo();
@@ -522,7 +522,7 @@ void runEach30Seconds()
 #ifdef USE_WIFI
   WifiCheck();
 #endif  
-#ifdef USE_ESPNOW
+#if defined(USE_ESPNOW) && ALIVE_PERIOD>0
  if ( (Settings.OLD_TaskDeviceID[1] == ESPNOW_SEND_ONLY_ENDPOINT) || (Settings.OLD_TaskDeviceID[1] == ESPNOW_SEND_AND_RECEIVE_ENDPOINT) ) {
   if ( (millis() - lastsysinfo > ALIVE_PERIOD) || ((millis() - lastsysinfo)<0) ) {
    ESPNOW_sendsysinfo();

@@ -8,7 +8,7 @@
 #define CPLUGIN_ID_001         1
 #define CPLUGIN_NAME_001       "ESPNOW"
 
-#define ESPNOW_VER 10
+#define ESPNOW_VER 11
 
 char c_payload[250]; // ESPNow package max size is 250bytes
 
@@ -82,6 +82,33 @@ struct P2P_TextDataStruct
   char TextLine[80];
 };
 
+// Init ESP Now
+void InitESPNow() {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  if (esp_now_init() == 0) {
+    Serial.println("ESPNow Init Success");
+  }
+  else {
+    delay(1000);
+    Serial.println("ESPNow Init Failed");
+    delay(5000);
+    reboot();
+  }
+#if defined(ESP8266)
+  esp_now_set_self_role(Settings.OLD_TaskDeviceID[0]); // OLD_TaskDeviceID[0] = ROLE!!!
+  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, Settings.UDPPort, NULL, 0);   // Settings.UDPPort = WIFI_CHANNEL
+#elif defined(ESP32)  
+  esp_now_peer_info_t slave;
+  memcpy(slave.peer_addr, broadcastMac, sizeof(broadcastMac) );
+  slave.channel = Settings.UDPPort;
+  slave.ifidx = ESP_IF_WIFI_STA;
+  slave.encrypt = 0;
+  esp_err_t status = esp_now_add_peer(&slave);
+#endif  
+  esp_now_register_recv_cb(ESPNOW_receiver); // Attach _C001_ESPNOW.ino receiver
+}
+
 boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
 {
   boolean success = false;
@@ -109,8 +136,8 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
     case CPLUGIN_PROTOCOL_RECV:
       {
         if (event->Data[0]==255) {
-//          Serial.println("PKTOK");
-//          Serial.println(event->Par1);
+/*          Serial.println("PKTOK");
+          Serial.println(event->Par1); // DEBUG*/
           
           if (event->Data[1]==1) { // infopacket
             struct P2P_SysInfoStruct dataReply;          
@@ -227,8 +254,8 @@ void ESPNOW_receiver(unsigned char* macaddr, unsigned char* data, unsigned char 
 void ESPNOW_receiver(const uint8_t* macaddr, const uint8_t* data, int data_len) // reroute incoming data
 #endif
 {
-//  Serial.print("recv_cb "); // debug
-//  Serial.println(data_len); // debug
+/*  Serial.print("recv_cb "); // debug
+  Serial.println(data_len); // debug */
   if (data_len<1) {
     return;
   }
@@ -290,18 +317,21 @@ boolean ESPNOW_sendreply(String line) {
   if (Settings.OLD_TaskDeviceID[1] != ESPNOW_SERIAL_GATEWAY) {Serial.println("Sending reply");}
   struct P2P_TextDataStruct dataReply;
 
-  dataReply.TextLength = line.length();
+  dataReply.TextLength = byte(line.length());
   dataReply.TextLine[dataReply.TextLength] = 0;
   strcpy(dataReply.TextLine, line.c_str());  
-  
   dataReply.sourcelUnit = byte(Settings.Unit);
   dataReply.destUnit = byte(Settings.OLD_TaskDeviceID[2]);
 
   // send packet  
-  byte psize = sizeof(dataReply);
+  byte psize = sizeof(P2P_TextDataStruct);
   if (dataReply.TextLength<80) { // do not send zeroes
-    psize = psize-(80-dataReply.TextLength);
+    psize = psize-(80-dataReply.TextLength)+1;
   }
+/*  Serial.println(dataReply.TextLine);
+  Serial.println(dataReply.TextLength);
+  Serial.println(psize);  */
+
   esp_now_send(broadcastMac, (byte*) &dataReply, psize);
 }
 
@@ -672,34 +702,5 @@ uint32_t makeTime(const timeStruct &tm) {
   seconds+= tm.Second;
   return (uint32_t)seconds;
 }
-
- // Init ESP Now
-void InitESPNow() {
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  if (esp_now_init() == 0) {
-    Serial.println("ESPNow Init Success");
-  }
-  else {
-    delay(1000);
-    Serial.println("ESPNow Init Failed");
-    delay(5000);
-    reboot();
-  }
-#if defined(ESP32)  
-  esp_now_peer_info_t slave;
-  memcpy(slave.peer_addr, broadcastMac, sizeof(broadcastMac) );
-  slave.channel = Settings.UDPPort;
-  slave.ifidx = ESP_IF_WIFI_STA;
-  slave.encrypt = 0;
-  esp_err_t status = esp_now_add_peer(&slave);
-#endif  
-#if defined(ESP8266)  
-  esp_now_set_self_role(Settings.OLD_TaskDeviceID[0]); // OLD_TaskDeviceID[0] = ROLE!!!
-  esp_now_add_peer(broadcastMac, ESP_NOW_ROLE_COMBO, Settings.UDPPort, NULL, 0);   // Settings.UDPPort = WIFI_CHANNEL
-#endif  
-  esp_now_register_recv_cb(ESPNOW_receiver); // Attach _C001_ESPNOW.ino receiver
-}
-
 
 #endif

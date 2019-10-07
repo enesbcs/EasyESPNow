@@ -25,6 +25,7 @@ void ExecuteCommand(byte source, const char *Line)
   if (strcasecmp_P(Command, PSTR("espnow")) == 0)
   {
     success = ESPNOW_commands(source,Line);
+    return;
   }
   if (strcasecmp_P(Command, PSTR("unit")) == 0)
   {
@@ -34,6 +35,7 @@ void ExecuteCommand(byte source, const char *Line)
       SaveSettings();
     }
     SendStatus(source, String(Settings.Unit));
+    return;
   }  
   if (strcasecmp_P(Command, PSTR("i2cscanner")) == 0)
   {

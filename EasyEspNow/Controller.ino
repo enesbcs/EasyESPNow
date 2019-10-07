@@ -166,6 +166,8 @@ void MQTTStatus(String& status)
 
 void SendStatus(byte source, String status)
 {
+/*  Serial.println(source);/// DEBUG
+  Serial.println(status);*/
   switch(source)
   {
     case VALUE_SOURCE_HTTP:

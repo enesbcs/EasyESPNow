@@ -922,7 +922,7 @@ void ResetFactory(void)
   Settings.WebLogLevel     = 0;
   Settings.SyslogLevel     = 0;
   Settings.SDLogLevel      = 0;
-  Settings.BaudRate        = 115200;
+  Settings.BaudRate        = DEFAULT_BAUD_RATE;
   Settings.MessageDelay   = 1000;
   Settings.deepSleep = false;
   Settings.CustomCSS = false;
@@ -1027,7 +1027,7 @@ void addLog(byte loglevel, const char *line)
 #ifdef USE_ESPNOW
   if (loglevel==LOG_LEVEL_REPLY)
    ESPNOW_sendreply(line);
-#endif      
+#endif
 #ifdef USE_WIFI
   if (loglevel <= Settings.SyslogLevel)
     syslog(line);
