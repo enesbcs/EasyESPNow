@@ -223,4 +223,3 @@ int Plugin_005_read_dht_dat(void)
   //interrupts();
   return result;
 }
-

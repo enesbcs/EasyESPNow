@@ -276,7 +276,11 @@ void setup()
     }
 
     addLog(LOG_LEVEL_INFO, log);
-
+#if defined(ESP32) // quickfix for esp32 unknown boot state
+if (Settings.deepSleep){
+ bootMode = 1;
+}
+#endif
     // Setup timers
     if (bootMode == 0)
     {

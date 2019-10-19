@@ -76,6 +76,38 @@
 // Use the "System Info" device to read the VCC value
 #define FEATURE_ADC_VCC                  false
 
+#define USES_P002
+#define USES_P003
+#define USES_P005
+#define USES_P006
+#define USES_P007
+#define USES_P008
+#define USES_P009
+#define USES_P010
+#define USES_P011
+#define USES_P013
+#define USES_P014
+#define USES_P015
+#define USES_P016
+#define USES_P017
+#define USES_P018
+#define USES_P019
+#define USES_P022
+#define USES_P024
+#define USES_P025
+#define USES_P026
+#define USES_P027
+#define USES_P028
+#define USES_P030
+#define USES_P031
+#define USES_P032
+#define USES_P033
+#define USES_P034
+#define USES_P035
+#define USES_P038
+#define USES_P041
+#define USES_P102
+
 // ********************************************************************************
 //   DO NOT CHANGE ANYTHING BELOW THIS LINE
 // ********************************************************************************

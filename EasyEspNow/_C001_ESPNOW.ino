@@ -140,8 +140,8 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           Serial.println(event->Par1); // DEBUG*/
           
           if (event->Data[1]==1) { // infopacket
-            struct P2P_SysInfoStruct dataReply;          
-            memcpy(&dataReply, event->Data, event->Par1);
+//            struct P2P_SysInfoStruct dataReply;          // not really needed at this point, uncomment if needed
+//            memcpy(&dataReply, event->Data, event->Par1);
             if (Settings.OLD_TaskDeviceID[1] == ESPNOW_SERIAL_GATEWAY) { // write to serial in bridge mode
               Serial.flush();
 //              Serial.write((byte*)&dataReply,event->Par1);
@@ -151,25 +151,34 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           }
           
           if (event->Data[1]==7) { // commandpacket
-            struct P2P_CommandDataStruct dataReply;          
-            memcpy(&dataReply, event->Data, event->Par1);
-            if ( (byte(dataReply.destUnit) != byte(Settings.Unit)) and (byte(dataReply.destUnit) != 0) ) { // exit if not broadcasted and we are not the destination
+//            struct P2P_CommandDataStruct dataReply;          
+//            memcpy(&dataReply, event->Data, event->Par1);
+            struct P2P_CommandDataStruct *dataReply;
+            dataReply = (P2P_CommandDataStruct*)event->Data;
+            if ( (byte(dataReply->destUnit) != byte(Settings.Unit)) and (byte(dataReply->destUnit) != 0) ) { // exit if not broadcasted and we are not the destination
               break;
             }
             if (Settings.OLD_TaskDeviceID[1] == ESPNOW_SERIAL_GATEWAY) { // write to serial in bridge mode
               Serial.flush();              
-              Serial.write((byte*)&dataReply,event->Par1);
+              Serial.write((byte*)dataReply,event->Par1);
             }
-            dataReply.CommandLine[dataReply.CommandLength] = 0; // make it zero terminated
-            String request = (char*)dataReply.CommandLine;
+            dataReply->CommandLine[dataReply->CommandLength] = 0; // make it zero terminated
+            String request = (char*)dataReply->CommandLine;
             
             if ( (request.indexOf(",mode")>0) || (Settings.OLD_TaskDeviceID[1] != ESPNOW_SERIAL_GATEWAY) ) // if not GW try to execute commands
             {           
-             struct EventStruct TempEvent;
-             parseCommandString(&TempEvent, request);
-             TempEvent.Source = VALUE_SOURCE_ESPNOW;
-             if (!PluginCall(PLUGIN_WRITE, &TempEvent, request))            // call plugins
-              ExecuteCommand(VALUE_SOURCE_ESPNOW, dataReply.CommandLine);     // or execute system command
+             struct EventStruct *TempEvent;
+             TempEvent = new EventStruct;
+             parseCommandString(TempEvent, request);
+             TempEvent->Source = VALUE_SOURCE_ESPNOW;
+             if (!PluginCall(PLUGIN_WRITE, TempEvent, request)){            // call plugins
+#ifdef ESP32
+              xTaskCreate(taskExecuteCommand,"taskExecuteCommand",8192, (void *)dataReply ,1,NULL); // strange stack error on esp32...
+#else
+              ExecuteCommand(VALUE_SOURCE_ESPNOW, dataReply->CommandLine);     // or execute system command              
+#endif              
+             }
+             delete TempEvent;            
             } 
           }    
                 
@@ -215,8 +224,8 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           dataReply.sourcelUnit = byte(Settings.Unit);
           dataReply.destUnit = byte(Settings.OLD_TaskDeviceID[2]);
 
-          dataReply.plugin_id = (word)(Settings.TaskDeviceNumber[event->TaskIndex]);
-          dataReply.idx = (word)(event->idx);
+          dataReply.plugin_id = (uint16_t)(Settings.TaskDeviceNumber[event->TaskIndex]);
+          dataReply.idx = (uint16_t)(event->idx);
           dataReply.valuecount = byte(getValueCountFromSensorType(event->sensorType));
   
           for (byte x = 0; x < dataReply.valuecount; x++)
@@ -246,6 +255,15 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
   }
   return success;
 }
+
+#ifdef ESP32
+void taskExecuteCommand( void * parameter ){  
+  struct P2P_CommandDataStruct *dataReply2;
+  dataReply2 = (P2P_CommandDataStruct*)parameter;
+  ExecuteCommand(VALUE_SOURCE_ESPNOW, dataReply2->CommandLine);     // or execute system command                
+  vTaskDelete( NULL );
+}
+#endif
 
 #if defined(ESP8266)
 void ESPNOW_receiver(unsigned char* macaddr, unsigned char* data, unsigned char data_len) // reroute incoming data
@@ -319,7 +337,7 @@ boolean ESPNOW_sendreply(String line) {
 
   dataReply.TextLength = byte(line.length());
   dataReply.TextLine[dataReply.TextLength] = 0;
-  strcpy(dataReply.TextLine, line.c_str());  
+  strncpy(dataReply.TextLine, line.c_str(),dataReply.TextLength);  
   dataReply.sourcelUnit = byte(Settings.Unit);
   dataReply.destUnit = byte(Settings.OLD_TaskDeviceID[2]);
 
@@ -340,7 +358,7 @@ boolean ESPNOW_sendcmd(const char *line) {
   struct P2P_CommandDataStruct dataReply;
 
   dataReply.CommandLength = strlen(line);
-  strcpy(dataReply.CommandLine, line);
+  strncpy(dataReply.CommandLine, line,dataReply.CommandLength);
 
   dataReply.sourcelUnit = byte(Settings.Unit);
   dataReply.destUnit = byte(Settings.OLD_TaskDeviceID[2]);
@@ -353,9 +371,9 @@ boolean ESPNOW_sendcmd(const char *line) {
   esp_now_send(broadcastMac, (byte*) &dataReply, psize);
 }
 
-boolean ESPNOW_commands(byte source, const char *Line) {
-  char TmpStr1[80];
-  TmpStr1[0] = 0;
+boolean ESPNOW_commands(byte source, const char *eLine) {
+  char TmpStr2[80];
+  TmpStr2[0] = 0;
   char Command[80];
   Command[0] = 0;
   int Par1 = 0;
@@ -363,10 +381,10 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   int Par3 = 0;
   boolean success = false;
 
-  GetArgv(Line, Command, 2);
-  if (GetArgv(Line, TmpStr1, 3)) Par1 = str2int(TmpStr1);
-  if (GetArgv(Line, TmpStr1, 4)) Par2 = str2int(TmpStr1);
-  if (GetArgv(Line, TmpStr1, 5)) Par3 = str2int(TmpStr1);
+  GetArgv(eLine, Command, 2);
+  if (GetArgv(eLine, TmpStr2, 3)) Par1 = str2int(TmpStr2);
+  if (GetArgv(eLine, TmpStr2, 4)) Par2 = str2int(TmpStr2);
+  if (GetArgv(eLine, TmpStr2, 5)) Par3 = str2int(TmpStr2);
 
   if (strcasecmp_P(Command, PSTR("ver")) == 0)  // get Version
   {
@@ -384,8 +402,8 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   if (strcasecmp_P(Command, PSTR("deepsleep")) == 0) // get-set DeepSleep setting
   {
     success = true;
-    GetArgv(Line, TmpStr1, 3);    
-    if (strlen(TmpStr1)>0) {
+    GetArgv(eLine, TmpStr2, 3);    
+    if (strlen(TmpStr2)>0) {
       if (Par1>0) {
         Settings.Delay = Par1;
         Settings.deepSleep = 1;
@@ -403,8 +421,8 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   if (strcasecmp_P(Command, PSTR("mode")) == 0) // get-set Endpoint work mode
   {
     success = true;
-    GetArgv(Line, TmpStr1, 3);    
-    if (strlen(TmpStr1)>0) {
+    GetArgv(eLine, TmpStr2, 3);    
+    if (strlen(TmpStr2)>0) {
       switch (Par1)
       {
         case ESPNOW_SERIAL_GATEWAY:
@@ -430,8 +448,8 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   if (strcasecmp_P(Command, PSTR("dest")) == 0) // get-set DestinationNode setting
   {
     success = true;
-    GetArgv(Line, TmpStr1, 3);    
-    if (strlen(TmpStr1)>0) {
+    GetArgv(eLine, TmpStr2, 3);    
+    if (strlen(TmpStr2)>0) {
       Settings.OLD_TaskDeviceID[2] = Par1;
     }
     SendStatus(source, String(Settings.OLD_TaskDeviceID[2])); // store default Destination
@@ -439,15 +457,15 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   if (strcasecmp_P(Command, PSTR("name")) == 0) // get-set UnitName setting
   {
     success = true;
-    memset(TmpStr1,0,25);
-    GetArgv(Line, TmpStr1, 3);
-    byte slen = strlen(TmpStr1);
+    memset(TmpStr2,0,25);
+    GetArgv(eLine, TmpStr2, 3);
+    byte slen = strlen(TmpStr2);
     if (slen>0) {
       if (sizeof(Settings.Name)<slen){
         slen= sizeof(Settings.Name);
       }
       memset(Settings.Name,0,slen);
-      memcpy(Settings.Name,TmpStr1,slen);
+      memcpy(Settings.Name,TmpStr2,slen);
       Settings.Name[slen]=0;
     }
     SendStatus(source, String(Settings.Name));
@@ -460,7 +478,7 @@ boolean ESPNOW_commands(byte source, const char *Line) {
   if (strcasecmp_P(Command, PSTR("sendcmd")) == 0) // send Command packet
   {
     success = true;
-    String event = Line;
+    String event = eLine;
     ESPNOW_sendcmd(event.substring(15).c_str()); // tasknum?? MISSING!
   }
   if (strcasecmp_P(Command, PSTR("tasklist")) == 0) // get tasklist
@@ -487,14 +505,14 @@ boolean ESPNOW_commands(byte source, const char *Line) {
     if (Par1) {
      int Par4 = 0; int Par5 = 0; int Par6 = 0; int Par7 = 0; int Par8 = 0;
      int Par9 = 0; int Par10 = 0; int Par11 = 0;
-     if (GetArgv(Line, TmpStr1, 6)) Par4 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 7)) Par5 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 8)) Par6 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 9)) Par7 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 10)) Par8 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 11)) Par9 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 12)) Par10 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 13)) Par11 = str2int(TmpStr1);               
+     if (GetArgv(eLine, TmpStr2, 6)) Par4 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 7)) Par5 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 8)) Par6 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 9)) Par7 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 10)) Par8 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 11)) Par9 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 12)) Par10 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 13)) Par11 = str2int(TmpStr2);
      taskConf(Par1, Par2, Par3, Par4, Par5, Par6, Par7, Par8, Par9, Par10, Par11);
      Serial.println(F("OK. Task config modified")); // INCOMPLETE!!!
     }
@@ -504,13 +522,14 @@ boolean ESPNOW_commands(byte source, const char *Line) {
     success = true;   // (byte taskIndex, byte taskdevicenumber, int pin1, int pin2, int pin3, int port, int interval, int idx)
     if (Par1) {
      int Par4 = 0; int Par5 = 0; int Par6 = 0; int Par7 = 0; int Par8 = 0;
-     if (GetArgv(Line, TmpStr1, 6)) Par4 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 7)) Par5 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 8)) Par6 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 9)) Par7 = str2int(TmpStr1);
-     if (GetArgv(Line, TmpStr1, 10)) Par8 = str2int(TmpStr1);
+     if (GetArgv(eLine, TmpStr2, 6)) Par4 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 7)) Par5 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 8)) Par6 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 9)) Par7 = str2int(TmpStr2);
+     if (GetArgv(eLine, TmpStr2, 10)) Par8 = str2int(TmpStr2);
      taskAdd(Par1, Par2, Par3, Par4, Par5, Par6, Par7, Par8, true);
      Serial.println(F("OK. Task added"));     
+     return success;
     }    
   }
 
@@ -519,9 +538,9 @@ boolean ESPNOW_commands(byte source, const char *Line) {
           int shour;
           int smin;
           int ssec;
-          if (GetArgv(Line, TmpStr1, 6)) shour = str2int(TmpStr1);
-          if (GetArgv(Line, TmpStr1, 7)) smin = str2int(TmpStr1);
-          if (GetArgv(Line, TmpStr1, 8)) ssec = str2int(TmpStr1);
+          if (GetArgv(eLine, TmpStr2, 6)) shour = str2int(TmpStr2);
+          if (GetArgv(eLine, TmpStr2, 7)) smin = str2int(TmpStr2);
+          if (GetArgv(eLine, TmpStr2, 8)) ssec = str2int(TmpStr2);
           tm.Year = Par1;
           if ((tm.Year < 2019) || (tm.Year > 3000)) {
             tm.Year = 2019;
@@ -585,8 +604,9 @@ void taskAdd(byte taskIndex, byte plugin_id, int pin1, int pin2, int pin3, int p
     taskIndex = taskIndex -1;
   }
   LoadTaskSettings(taskIndex);
-  struct EventStruct TempEvent;
-  TempEvent.TaskIndex = taskIndex;
+  struct EventStruct *TempEvent;
+  TempEvent = new EventStruct;
+  TempEvent->TaskIndex = taskIndex;
   Settings.TaskDeviceNumber[taskIndex] = plugin_id;
   Settings.TaskDeviceDataFeed[taskIndex] = 0;
   Settings.TaskDevicePin1[taskIndex] = pin1;
@@ -603,10 +623,12 @@ void taskAdd(byte taskIndex, byte plugin_id, int pin1, int pin2, int pin3, int p
   byte DeviceIndex = getDeviceIndex(plugin_id);
   Plugin_ptr[DeviceIndex](PLUGIN_GET_DEVICENAME, 0, deviceName);
   deviceName += String(taskIndex);
+  deviceName.replace(" ", "");
   deviceName.toCharArray(ExtraTaskSettings.TaskDeviceName,deviceName.length());
-  PluginCall(PLUGIN_GET_DEVICEVALUENAMES, &TempEvent, dummyString);
-  PluginCall(PLUGIN_INIT, &TempEvent, dummyString);
-
+  deviceName = "";
+  PluginCall(PLUGIN_GET_DEVICEVALUENAMES, TempEvent, dummyString);
+  PluginCall(PLUGIN_INIT, TempEvent, dummyString);
+  delete TempEvent;
   if (save)
   {
     SaveTaskSettings(taskIndex);

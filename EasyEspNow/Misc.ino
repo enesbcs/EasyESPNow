@@ -629,20 +629,18 @@ boolean str2ip(char *string, byte* IP)
   \*********************************************************************************************/
 boolean SaveSettings(void)
 {
-  SaveToFile((char*)FILE_CONFIG, 0, (byte*)&Settings, sizeof(struct SettingsStruct));
-  return SaveToFile((char*)FILE_SECURITY, 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
+  SaveToFile((char*)FILE_CONFIG, 0, (byte*)(&Settings), sizeof(Settings));
+  return SaveToFile((char*)FILE_SECURITY, 0, (byte*)(&SecuritySettings), sizeof(SecuritySettings));
 }
-
 
 /********************************************************************************************\
   Load settings from SPIFFS
   \*********************************************************************************************/
 boolean LoadSettings()
 {
-  LoadFromFile((char*)FILE_CONFIG, 0, (byte*)&Settings, sizeof(struct SettingsStruct));
-  LoadFromFile((char*)FILE_SECURITY, 0, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
+  LoadFromFile((char*)FILE_CONFIG, 0, (byte*)(&Settings), sizeof(struct SettingsStruct));
+  LoadFromFile((char*)FILE_SECURITY, 0, (byte*)(&SecuritySettings), sizeof(struct SecurityStruct));
 }
-
 
 /********************************************************************************************\
   Save Task settings to SPIFFS
@@ -757,7 +755,6 @@ void LoadNotificationSettings(int NotificationIndex, byte* memAddress, int datas
 boolean SaveToFile(char* fname, int index, byte* memAddress, int datasize)
 {
   boolean success = false;
-
   if (RTC.flashDayCounter > MAX_FLASHWRITES_PER_DAY)
   {
     String log = F("FS   : Daily flash write rate exceeded!");
